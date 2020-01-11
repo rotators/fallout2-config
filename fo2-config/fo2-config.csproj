@@ -44,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ddraw.cs" />
+    <Compile Include="ini.cs" />
     <Compile Include="frmMain.cs">
       <SubType>Form</SubType>
     </Compile>

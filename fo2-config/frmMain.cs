@@ -11,6 +11,9 @@ namespace fo2_config
 {
     public partial class frmMain : Form
     {
+        ini ddraw = new DDRAW();
+        ini f2_res = new f2Res();
+
         public frmMain()
         {
             InitializeComponent();
@@ -21,10 +24,11 @@ namespace fo2_config
 
             PlaceLink(this, "fodev.net", "https://fodev.net", this.Width-80, 7).Anchor = (AnchorStyles.Top | AnchorStyles.Right);
 
-            ddraw.Init();
             ddraw.Parse(@"E:\Fallout\fo2\Fallout1in2\ddraw.ini");
+            ddraw.redrawCallback = () => DrawSelectedCategory(ddraw, DDrawTabControl);
 
-            ddraw.redrawCallback = () => DrawSelectedDDrawCategory(DDrawTabControl);
+            f2_res.Parse(@"E:\Fallout\fo2\Fallout1in2\f2_res.ini");
+            f2_res.redrawCallback = () => DrawSelectedCategory(f2_res, F2ResTabControl);
 
             this.RenderTabContent();
         }
@@ -32,6 +36,7 @@ namespace fo2_config
         Font linkFont = new System.Drawing.Font("Microsoft Sans Serif", 8f, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
         int selectedDDrawTab = -1;
         TabControl DDrawTabControl;
+        TabControl F2ResTabControl;
 
         public LinkLabel PlaceLink(Control parent, string text, string href, int x, int y)
         {
@@ -70,32 +75,69 @@ namespace fo2_config
             p.ResumeLayout();
         }
 
-        public void DrawCategory(string category, TabPage p)
+        public void DrawCategory(ini iniFile, string category, TabPage p)
         {
-            var opts = ddraw.options.Where(x => x.category == category && x.found);
+            var opts = iniFile.renderables.Where(x => x.GetCategory() == category);
             if (opts.Any())
             {
                 p.UseVisualStyleBackColor = true;
+                p.AutoScroll = true;
                 int y = 10;
                 foreach (var o in opts)
                 {
-                    y = o.Render(p, y) + 25;
+                    y = o.Render(p, y);
                 }
             }
         }
 
-        private void DrawSelectedDDrawCategory(TabControl tc)
+        private void DrawSelectedCategory(ini iniFile, TabControl tc)
         {
-            //tc.SelectedTab.Controls.Clear();
-            //tc.SuspendLayout();
             var oldControls = new List<Control>();
             foreach (var o in tc.SelectedTab.Controls)
                 oldControls.Add((Control)o);
 
-            DrawCategory(tc.SelectedTab.Text, tc.SelectedTab);
+            DrawCategory(iniFile, tc.SelectedTab.Text, tc.SelectedTab);
 
             foreach (var o in oldControls)
                 tc.SelectedTab.Controls.Remove(o);
+        }
+
+        public void RenderF2Res()
+        {
+            var p = tabControl.TabPages[2];
+            p.AutoScroll = true;
+            p.SuspendLayout();
+            p.Controls.Clear();
+
+            var xPos = 10;
+            var yPos = 10;
+
+            PlaceText(p, $"f2_res.ini loaded from {f2_res.Path}.", xPos, yPos);
+
+            var tc = new TabControl();
+            tc.Height = p.Height - 40;
+            tc.Width = p.Width - 30;
+            tc.Location = new Point(10, 30);
+            tc.Parent = p;
+            tc.Anchor = (AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right);
+
+            var categories = new string[] { "MAIN", "INPUT", "EFFECTS", "HI_RES_PANEL", "MOVIES", "MAPS", "IFACE", "MAINMENU", "STATIC_SCREENS", "OTHER_SETTINGS" };
+            foreach (var cat in categories)
+                tc.TabPages.Add(cat);
+
+            if (selectedDDrawTab != -1)
+                tc.SelectedIndex = selectedDDrawTab;
+
+            tc.SelectedIndexChanged += (sender, e) =>
+            {
+                this.DrawSelectedCategory(f2_res, tc);
+                selectedDDrawTab = tc.SelectedIndex;
+            };
+
+            F2ResTabControl = tc;
+            this.DrawSelectedCategory(f2_res, tc);
+            yPos += 20;
+            p.ResumeLayout();
         }
 
         public void RenderDDraw()
@@ -126,16 +168,12 @@ namespace fo2_config
 
             tc.SelectedIndexChanged += (sender, e) =>
             {
-                this.DrawSelectedDDrawCategory(tc);
+                this.DrawSelectedCategory(ddraw, tc);
                 selectedDDrawTab = tc.SelectedIndex;
             };
 
             DDrawTabControl = tc;
-
-
             yPos += 20;
-
-
             p.ResumeLayout();
         }
 
@@ -150,6 +188,7 @@ namespace fo2_config
 
             if (idx == 0) RenderMain();
             if (idx == 1) RenderDDraw();
+            if (idx == 2) RenderF2Res();
         }
 
         private void tabMain_Resize(object sender, EventArgs e)
